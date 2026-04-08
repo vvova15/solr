@@ -32,7 +32,6 @@ import org.apache.solr.client.solrj.impl.SolrHttpConstants;
 import org.apache.solr.client.solrj.jetty.HttpJettySolrClient;
 import org.apache.solr.common.AlreadyClosedException;
 import org.apache.solr.common.util.IOUtils;
-import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.common.util.URLUtil;
 
 /** The SolrClientCache caches SolrClients, so they can be reused by different TupleStreams. */
@@ -88,12 +87,11 @@ public class SolrClientCache implements Closeable {
     // Basically the ZK ACLs are assumed to be only used for the default ZK host,
     // thus we should only provide the ACLs to that Zookeeper instance.
     boolean canUseACLs = false;
-    CloudSolrClient.CloudSolrClientConnection cloudClientConnection =
-        CloudSolrClient.CloudSolrClientConnection.parse(connectionString);
+    var cloudClientConnection = CloudSolrClient.CloudSolrClientConnection.parse(connectionString);
     if (cloudClientConnection.isZk()) {
       String chroot = cloudClientConnection.zkChroot();
       String zkHostNoChroot =
-          StrUtils.isNotBlank(chroot) && connectionString.endsWith(chroot)
+          chroot != null && connectionString.endsWith(chroot)
               ? connectionString.substring(0, connectionString.length() - chroot.length())
               : connectionString;
       canUseACLs =
