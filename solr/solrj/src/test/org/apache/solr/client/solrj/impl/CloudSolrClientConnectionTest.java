@@ -48,8 +48,7 @@ public class CloudSolrClientConnectionTest extends SolrTestCase {
         CloudSolrClient.CloudSolrClientConnection.parse(
             "192.0.2.10:2181,192.0.2.11:2181,192.0.2.12:2181/solr");
     Assert.assertTrue(parsed.isZk());
-    List<String> expectedQuorum =
-        List.of("192.0.2.10:2181", "192.0.2.11:2181", "192.0.2.12:2181");
+    List<String> expectedQuorum = List.of("192.0.2.10:2181", "192.0.2.11:2181", "192.0.2.12:2181");
     Assert.assertTrue(collectionEqual(expectedQuorum, parsed.quorumItems()));
     Assert.assertEquals("/solr", parsed.zkChroot());
   }
