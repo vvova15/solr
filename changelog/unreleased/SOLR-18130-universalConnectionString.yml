@@ -1,4 +1,4 @@
-title: Added universal connection string support into CloudSolrClient.Builder
+title: Added a universal connection string (ZK/HTTP) to CloudSolrClient.Builder
 type: added
 authors:
   - name: Vladimir Vyatkin
