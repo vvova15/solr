@@ -256,12 +256,12 @@ public abstract class CloudSolrClient extends SolrClient {
      * @throws IllegalArgumentException if string is null, empty, or malformed
      */
     public Builder(String connectionString) {
-      CloudSolrClientConnection connStr = CloudSolrClientConnection.parse(connectionString);
-      if (connStr.isZk()) {
-        this.zkHosts = connStr.quorumItems();
-        this.zkChroot = connStr.zkChroot();
+      CloudSolrClientConnection connection = CloudSolrClientConnection.parse(connectionString);
+      if (connection.isZk()) {
+        this.zkHosts = connection.quorumItems();
+        this.zkChroot = connection.zkChroot();
       } else {
-        this.solrUrls = connStr.quorumItems();
+        this.solrUrls = connection.quorumItems();
       }
     }
 
