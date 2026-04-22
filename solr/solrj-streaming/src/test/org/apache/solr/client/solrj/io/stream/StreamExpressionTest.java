@@ -135,6 +135,8 @@ public class StreamExpressionTest extends SolrCloudTestCase {
 
     StreamFactory factory =
         new StreamFactory()
+            .withDefaultZkHost(
+                cluster.getZkServer().getZkAddress()) // TODO: defaultZkHost can be empty?
             .withCollectionZkHost(COLLECTIONORALIAS, cluster.getZkServer().getZkAddress());
     StreamExpression expression;
     CloudSolrStream stream;
@@ -874,6 +876,8 @@ public class StreamExpressionTest extends SolrCloudTestCase {
     StreamFactory factory =
         new StreamFactory()
             .withCollectionZkHost(COLLECTIONORALIAS, cluster.getZkServer().getZkAddress())
+            .withDefaultZkHost(
+                cluster.getZkServer().getZkAddress()) // TODO: defaultZkHost can be empty?
             .withFunctionName("stats", StatsStream.class)
             .withFunctionName("sum", SumMetric.class)
             .withFunctionName("min", MinMetric.class)

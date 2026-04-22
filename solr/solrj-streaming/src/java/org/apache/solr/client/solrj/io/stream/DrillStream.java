@@ -187,7 +187,7 @@ public class DrillStream extends CloudSolrStream implements Expressible {
       String flParam,
       String qParam)
       throws IOException {
-    this.zkHost = zkHost;
+    this.solrCloud = zkHost;
     this.collection = collection;
     this.comp = comp;
     this.tupleStream = tupleStream;
@@ -229,7 +229,7 @@ public class DrillStream extends CloudSolrStream implements Expressible {
     expression.addParameter(new StreamExpressionNamedParameter(SORT, comp.toExpression(factory)));
 
     // zkHost
-    expression.addParameter(new StreamExpressionNamedParameter("zkHost", zkHost));
+    expression.addParameter(new StreamExpressionNamedParameter("zkHost", solrCloud));
 
     return expression;
   }
@@ -285,7 +285,7 @@ public class DrillStream extends CloudSolrStream implements Expressible {
       paramsLoc.set("fl", fl);
       paramsLoc.set("sort", sort);
       paramsLoc.set("q", q);
-      getReplicas(this.zkHost, this.collection, this.streamContext, paramsLoc)
+      getReplicas(this.solrCloud, this.collection, this.streamContext, paramsLoc)
           .forEach(
               r -> {
                 SolrStream solrStream = new SolrStream(r.getBaseUrl(), paramsLoc, r.getCoreName());

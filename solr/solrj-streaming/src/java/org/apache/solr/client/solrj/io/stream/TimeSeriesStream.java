@@ -66,14 +66,14 @@ public class TimeSeriesStream extends TupleStream implements Expressible {
   private Metric[] metrics;
   private List<Tuple> tuples = new ArrayList<>();
   private int index;
-  private String zkHost;
+  private String solrCloud;
   private SolrParams params;
   private String collection;
   private transient SolrClientCache clientCache;
   private transient boolean doCloseCache;
 
   public TimeSeriesStream(
-      String zkHost,
+      String solrCloud,
       String collection,
       SolrParams params,
       Metric[] metrics,
@@ -83,7 +83,7 @@ public class TimeSeriesStream extends TupleStream implements Expressible {
       String gap,
       String format)
       throws IOException {
-    init(collection, params, field, metrics, start, end, gap, format, null, null, zkHost);
+    init(collection, params, field, metrics, start, end, gap, format, null, null, solrCloud);
   }
 
   public TimeSeriesStream(StreamExpression expression, StreamFactory factory) throws IOException {
@@ -103,7 +103,6 @@ public class TimeSeriesStream extends TupleStream implements Expressible {
     StreamExpressionNamedParameter splitExpression = factory.getNamedOperand(expression, "split");
     StreamExpressionNamedParameter limitExpression = factory.getNamedOperand(expression, "limit");
 
-    StreamExpressionNamedParameter zkHostExpression = factory.getNamedOperand(expression, "zkHost");
     List<StreamExpression> metricExpressions =
         factory.getExpressionOperandsRepresentingTypes(expression, Expressible.class, Metric.class);
 
@@ -195,41 +194,18 @@ public class TimeSeriesStream extends TupleStream implements Expressible {
     }
 
     // pull out known named params
-    ModifiableSolrParams params = new ModifiableSolrParams();
-    for (StreamExpressionNamedParameter namedParam : namedParams) {
-      if (!namedParam.getName().equals("zkHost")
-          && !namedParam.getName().equals("start")
-          && !namedParam.getName().equals("end")
-          && !namedParam.getName().equals("gap")) {
-        params.add(namedParam.getName(), namedParam.getParameter().toString().trim());
-      }
-    }
-
+    ModifiableSolrParams params =
+        getModifiableSolrParamsWithExclusions(
+            namedParams, "zkHost", "solrCloud", "start", "end", "gap");
     if (params.get("q") == null) {
       params.set("q", "*:*");
     }
 
-    // zkHost, optional - if not provided then will look into factory list to get
-    String zkHost = null;
-    if (null == zkHostExpression) {
-      zkHost = factory.getCollectionZkHost(collectionName);
-      if (zkHost == null) {
-        zkHost = factory.getDefaultZkHost();
-      }
-    } else if (zkHostExpression.getParameter() instanceof StreamExpressionValue) {
-      zkHost = ((StreamExpressionValue) zkHostExpression.getParameter()).getValue();
-    }
-    if (null == zkHost) {
-      throw new IOException(
-          String.format(
-              Locale.ROOT,
-              "invalid expression %s - zkHost not found for collection '%s'",
-              expression,
-              collectionName));
-    }
+    // solrCloud, optional - if not provided then will look into factory list to get
+    String solrCloud = getSolrCloud(factory, expression, collectionName);
 
     // We've got all the required items
-    init(collectionName, params, field, metrics, start, end, gap, format, split, limit, zkHost);
+    init(collectionName, params, field, metrics, start, end, gap, format, split, limit, solrCloud);
   }
 
   public String getCollection() {
@@ -247,9 +223,9 @@ public class TimeSeriesStream extends TupleStream implements Expressible {
       String format,
       String split,
       String limit,
-      String zkHost)
+      String solrCloud)
       throws IOException {
-    this.zkHost = zkHost;
+    this.solrCloud = solrCloud;
     this.collection = collection;
     this.start = start;
     this.gap = gap;
@@ -298,8 +274,8 @@ public class TimeSeriesStream extends TupleStream implements Expressible {
     expression.addParameter(new StreamExpressionNamedParameter("field", gap));
     expression.addParameter(new StreamExpressionNamedParameter("format", format));
 
-    // zkHost
-    expression.addParameter(new StreamExpressionNamedParameter("zkHost", zkHost));
+    // solrCloud
+    expression.addParameter(new StreamExpressionNamedParameter("solrCloud", solrCloud));
 
     return expression;
   }
@@ -361,7 +337,7 @@ public class TimeSeriesStream extends TupleStream implements Expressible {
 
     QueryRequest request = new QueryRequest(paramsLoc, SolrRequest.METHOD.POST);
     try {
-      var cloudSolrClient = clientCache.getCloudSolrClient(zkHost);
+      var cloudSolrClient = clientCache.getCloudSolrClient(solrCloud);
       NamedList<?> response = cloudSolrClient.request(request, collection);
       getTuples(response, field, metrics);
     } catch (Exception e) {

@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
  */
 public class GatherNodesStream extends TupleStream implements Expressible {
 
-  private String zkHost;
+  private String solrCloud;
   private String collection;
   private StreamContext streamContext;
   private Map<String, String> queryParams;
@@ -97,7 +97,7 @@ public class GatherNodesStream extends TupleStream implements Expressible {
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   public GatherNodesStream(
-      String zkHost,
+      String solrCloud,
       String collection,
       TupleStream tupleStream,
       String traverseFrom,
@@ -110,7 +110,7 @@ public class GatherNodesStream extends TupleStream implements Expressible {
       int maxDocFreq) {
 
     init(
-        zkHost,
+        solrCloud,
         collection,
         tupleStream,
         traverseFrom,
@@ -130,7 +130,6 @@ public class GatherNodesStream extends TupleStream implements Expressible {
 
     String collectionName = factory.getValueOperand(expression, 0);
     List<StreamExpressionNamedParameter> namedParams = factory.getNamedOperands(expression);
-    StreamExpressionNamedParameter zkHostExpression = factory.getNamedOperand(expression, "zkHost");
 
     List<StreamExpression> streamExpressions =
         factory.getExpressionOperandsRepresentingTypes(
@@ -276,6 +275,7 @@ public class GatherNodesStream extends TupleStream implements Expressible {
     Map<String, String> params = new HashMap<String, String>();
     for (StreamExpressionNamedParameter namedParam : namedParams) {
       if (!namedParam.getName().equals("zkHost")
+          && !namedParam.getName().equals("solrCloud")
           && !namedParam.getName().equals("gather")
           && !namedParam.getName().equals("walk")
           && !namedParam.getName().equals("scatter")
@@ -287,29 +287,12 @@ public class GatherNodesStream extends TupleStream implements Expressible {
       }
     }
 
-    // zkHost, optional - if not provided then will look into factory list to get
-    String zkHost = null;
-    if (null == zkHostExpression) {
-      zkHost = factory.getCollectionZkHost(collectionName);
-      if (zkHost == null) {
-        zkHost = factory.getDefaultZkHost();
-      }
-    } else if (zkHostExpression.getParameter() instanceof StreamExpressionValue) {
-      zkHost = ((StreamExpressionValue) zkHostExpression.getParameter()).getValue();
-    }
-
-    if (null == zkHost) {
-      throw new IOException(
-          String.format(
-              Locale.ROOT,
-              "invalid expression %s - zkHost not found for collection '%s'",
-              expression,
-              collectionName));
-    }
+    // solrCloud, optional - if not provided then will look into factory list to get
+    String solrCloud = getSolrCloud(factory, expression, collectionName);
 
     // We've got all the required items
     init(
-        zkHost,
+        solrCloud,
         collectionName,
         stream,
         traverseFrom,
@@ -326,7 +309,7 @@ public class GatherNodesStream extends TupleStream implements Expressible {
   }
 
   private void init(
-      String zkHost,
+      String solrCloud,
       String collection,
       TupleStream tupleStream,
       String traverseFrom,
@@ -340,7 +323,7 @@ public class GatherNodesStream extends TupleStream implements Expressible {
       int window,
       int lag,
       int interval) {
-    this.zkHost = zkHost;
+    this.solrCloud = solrCloud;
     this.collection = collection;
     this.tupleStream = tupleStream;
     this.traverseFrom = traverseFrom;
@@ -405,8 +388,8 @@ public class GatherNodesStream extends TupleStream implements Expressible {
       }
     }
 
-    expression.addParameter(new StreamExpressionNamedParameter("zkHost", zkHost));
-    expression.addParameter(new StreamExpressionNamedParameter("gather", zkHost));
+    expression.addParameter(new StreamExpressionNamedParameter("solrCloud", solrCloud));
+    expression.addParameter(new StreamExpressionNamedParameter("gather", gather));
     if (maxDocFreq > -1) {
       expression.addParameter(
           new StreamExpressionNamedParameter("maxDocFreq", Integer.toString(maxDocFreq)));
@@ -582,7 +565,7 @@ public class GatherNodesStream extends TupleStream implements Expressible {
       try {
         stream =
             new UniqueStream(
-                new CloudSolrStream(zkHost, collection, joinSParams),
+                new CloudSolrStream(solrCloud, collection, joinSParams),
                 new MultipleFieldEqualitor(
                     new FieldEqualitor(gather), new FieldEqualitor(traverseTo)));
         stream.setStreamContext(streamContext);

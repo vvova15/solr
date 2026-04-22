@@ -46,7 +46,6 @@ import org.apache.solr.client.solrj.io.stream.expr.StreamExplanation;
 import org.apache.solr.client.solrj.io.stream.expr.StreamExpression;
 import org.apache.solr.client.solrj.io.stream.expr.StreamExpressionNamedParameter;
 import org.apache.solr.client.solrj.io.stream.expr.StreamExpressionParameter;
-import org.apache.solr.client.solrj.io.stream.expr.StreamExpressionValue;
 import org.apache.solr.client.solrj.io.stream.expr.StreamFactory;
 import org.apache.solr.client.solrj.request.QueryRequest;
 import org.apache.solr.client.solrj.response.QueryResponse;
@@ -62,7 +61,7 @@ public class TextLogitStream extends TupleStream implements Expressible {
 
   private static final long serialVersionUID = 1;
 
-  protected String zkHost;
+  protected String solrCloud;
   protected String collection;
   protected Map<String, String> params;
   protected String field;
@@ -88,7 +87,7 @@ public class TextLogitStream extends TupleStream implements Expressible {
   private double lastError = 0;
 
   public TextLogitStream(
-      String zkHost,
+      String solrCloud,
       String collectionName,
       Map<String, String> params,
       String name,
@@ -103,7 +102,7 @@ public class TextLogitStream extends TupleStream implements Expressible {
 
     init(
         collectionName,
-        zkHost,
+        solrCloud,
         params,
         name,
         field,
@@ -116,17 +115,17 @@ public class TextLogitStream extends TupleStream implements Expressible {
         iteration);
   }
 
-  /** logit(collection, zkHost="", features="a,b,c,d,e,f,g", outcome="y", maxIteration="20") */
+  /** logit(collection, solrCloud="", features="a,b,c,d,e,f,g", outcome="y", maxIteration="20") */
   public TextLogitStream(StreamExpression expression, StreamFactory factory) throws IOException {
     // grab all parameters out
     String collectionName = factory.getValueOperand(expression, 0);
     List<StreamExpressionNamedParameter> namedParams = factory.getNamedOperands(expression);
-    StreamExpressionNamedParameter zkHostExpression = factory.getNamedOperand(expression, "zkHost");
     List<StreamExpression> streamExpressions =
         factory.getExpressionOperandsRepresentingTypes(
             expression, Expressible.class, TupleStream.class);
 
-    // Validate there are no unknown parameters - zkHost and alias are namedParameter, so we don't
+    // Validate there are no unknown parameters - solrCloud/zkHost and alias are namedParameter, so
+    // we don't
     // need to count it twice
     if (expression.getParameters().size() != 1 + namedParams.size() + streamExpressions.size()) {
       throw new IOException(
@@ -153,7 +152,7 @@ public class TextLogitStream extends TupleStream implements Expressible {
 
     Map<String, String> params = new HashMap<>();
     for (StreamExpressionNamedParameter namedParam : namedParams) {
-      if (!namedParam.getName().equals("zkHost")) {
+      if (!namedParam.getName().equals("solrCloud") && !namedParam.getName().equals("solrCloud")) {
         params.put(namedParam.getName(), namedParam.getParameter().toString().trim());
       }
     }
@@ -229,26 +228,13 @@ public class TextLogitStream extends TupleStream implements Expressible {
       params.remove("weights");
     }
 
-    // zkHost, optional - if not provided then will look into factory list to get
-    String zkHost = null;
-    if (null == zkHostExpression) {
-      zkHost = factory.getCollectionZkHost(collectionName);
-    } else if (zkHostExpression.getParameter() instanceof StreamExpressionValue) {
-      zkHost = ((StreamExpressionValue) zkHostExpression.getParameter()).getValue();
-    }
-    if (null == zkHost) {
-      throw new IOException(
-          String.format(
-              Locale.ROOT,
-              "invalid expression %s - zkHost not found for collection '%s'",
-              expression,
-              collectionName));
-    }
+    // solrCloud, optional - if not provided then will look into factory list to get
+    String solrCloud = getSolrCloud(factory, expression, collectionName);
 
     // We've got all the required items
     init(
         collectionName,
-        zkHost,
+        solrCloud,
         params,
         name,
         feature,
@@ -312,15 +298,15 @@ public class TextLogitStream extends TupleStream implements Expressible {
     expression.addParameter(
         new StreamExpressionNamedParameter("threshold", Double.toString(threshold)));
 
-    // zkHost
-    expression.addParameter(new StreamExpressionNamedParameter("zkHost", zkHost));
+    // solrCloud
+    expression.addParameter(new StreamExpressionNamedParameter("solrCloud", solrCloud));
 
     return expression;
   }
 
   private void init(
       String collectionName,
-      String zkHost,
+      String solrCloud,
       Map<String, String> params,
       String name,
       String feature,
@@ -332,7 +318,7 @@ public class TextLogitStream extends TupleStream implements Expressible {
       int maxIterations,
       int iteration)
       throws IOException {
-    this.zkHost = zkHost;
+    this.solrCloud = solrCloud;
     this.collection = collectionName;
     this.params = params;
     this.name = name;
@@ -373,7 +359,7 @@ public class TextLogitStream extends TupleStream implements Expressible {
 
   protected List<String> getShardUrls() throws IOException {
     try {
-      var cloudSolrClient = clientCache.getCloudSolrClient(zkHost);
+      var cloudSolrClient = clientCache.getCloudSolrClient(solrCloud);
       List<Slice> slices = CloudSolrStream.getSlices(this.collection, cloudSolrClient, false);
 
       Set<String> liveNodes = cloudSolrClient.getClusterState().getLiveNodes();

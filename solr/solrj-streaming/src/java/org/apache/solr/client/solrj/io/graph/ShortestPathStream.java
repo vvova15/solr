@@ -70,7 +70,7 @@ public class ShortestPathStream extends TupleStream implements Expressible {
   private String toField;
   private int joinBatchSize;
   private int maxDepth;
-  private String zkHost;
+  private String solrCloud;
   private String collection;
   private final Deque<Tuple> shortestPaths = new ArrayDeque<>();
   private boolean found;
@@ -79,7 +79,7 @@ public class ShortestPathStream extends TupleStream implements Expressible {
   private SolrParams queryParams;
 
   public ShortestPathStream(
-      String zkHost,
+      String solrCloud,
       String collection,
       String fromNode,
       String toNode,
@@ -91,7 +91,7 @@ public class ShortestPathStream extends TupleStream implements Expressible {
       int maxDepth) {
 
     init(
-        zkHost,
+        solrCloud,
         collection,
         fromNode,
         toNode,
@@ -107,7 +107,6 @@ public class ShortestPathStream extends TupleStream implements Expressible {
 
     String collectionName = factory.getValueOperand(expression, 0);
     List<StreamExpressionNamedParameter> namedParams = factory.getNamedOperands(expression);
-    StreamExpressionNamedParameter zkHostExpression = factory.getNamedOperand(expression, "zkHost");
 
     // Collection Name
     if (null == collectionName) {
@@ -194,42 +193,24 @@ public class ShortestPathStream extends TupleStream implements Expressible {
           Integer.parseInt(((StreamExpressionValue) depthExpression.getParameter()).getValue());
     }
 
-    ModifiableSolrParams params = new ModifiableSolrParams();
-    for (StreamExpressionNamedParameter namedParam : namedParams) {
-      if (!namedParam.getName().equals("zkHost")
-          && !namedParam.getName().equals("to")
-          && !namedParam.getName().equals("from")
-          && !namedParam.getName().equals("edge")
-          && !namedParam.getName().equals("maxDepth")
-          && !namedParam.getName().equals("threads")
-          && !namedParam.getName().equals("partitionSize")) {
-        params.set(namedParam.getName(), namedParam.getParameter().toString().trim());
-      }
-    }
+    ModifiableSolrParams params =
+        getModifiableSolrParamsWithExclusions(
+            namedParams,
+            "solrCloud",
+            "zkHost",
+            "to",
+            "from",
+            "edge",
+            "maxDepth",
+            "threads",
+            "partitionSize");
 
-    // zkHost, optional - if not provided then will look into factory list to get
-    String zkHost = null;
-    if (null == zkHostExpression) {
-      zkHost = factory.getCollectionZkHost(collectionName);
-      if (zkHost == null) {
-        zkHost = factory.getDefaultZkHost();
-      }
-    } else if (zkHostExpression.getParameter() instanceof StreamExpressionValue) {
-      zkHost = ((StreamExpressionValue) zkHostExpression.getParameter()).getValue();
-    }
-
-    if (null == zkHost) {
-      throw new IOException(
-          String.format(
-              Locale.ROOT,
-              "invalid expression %s - zkHost not found for collection '%s'",
-              expression,
-              collectionName));
-    }
+    // solrCloud, optional - if not provided then will look into factory list to get
+    String solrCloud = getSolrCloud(factory, expression, collectionName);
 
     // We've got all the required items
     init(
-        zkHost,
+        solrCloud,
         collectionName,
         fromNode,
         toNode,
@@ -242,7 +223,7 @@ public class ShortestPathStream extends TupleStream implements Expressible {
   }
 
   private void init(
-      String zkHost,
+      String solrCloud,
       String collection,
       String fromNode,
       String toNode,
@@ -252,7 +233,7 @@ public class ShortestPathStream extends TupleStream implements Expressible {
       int joinBatchSize,
       int threads,
       int maxDepth) {
-    this.zkHost = zkHost;
+    this.solrCloud = solrCloud;
     this.collection = collection;
     this.fromNode = fromNode;
     this.toNode = toNode;
@@ -285,7 +266,7 @@ public class ShortestPathStream extends TupleStream implements Expressible {
       expression.addParameter(new StreamExpressionNamedParameter(param.getKey().toString(), value));
     }
 
-    expression.addParameter(new StreamExpressionNamedParameter("zkHost", zkHost));
+    expression.addParameter(new StreamExpressionNamedParameter("solrCloud", solrCloud));
     expression.addParameter(
         new StreamExpressionNamedParameter("maxDepth", Integer.toString(maxDepth)));
     expression.addParameter(
@@ -497,7 +478,7 @@ public class ShortestPathStream extends TupleStream implements Expressible {
       try {
         stream =
             new UniqueStream(
-                new CloudSolrStream(zkHost, collection, joinParams),
+                new CloudSolrStream(solrCloud, collection, joinParams),
                 new MultipleFieldEqualitor(
                     new FieldEqualitor(toField), new FieldEqualitor(fromField)));
         stream.setStreamContext(streamContext);

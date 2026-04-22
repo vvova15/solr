@@ -57,7 +57,7 @@ public class KnnStream extends TupleStream implements Expressible {
     "qf", "mintf", "mindf", "maxdf", "minwl", "maxwl", "maxqt", "maxntp", "boost"
   };
 
-  private String zkHost;
+  private String solrCloud;
   private Map<String, String> props;
   private String collection;
   private transient SolrClientCache clientCache;
@@ -65,16 +65,15 @@ public class KnnStream extends TupleStream implements Expressible {
   private Iterator<SolrDocument> documentIterator;
   private String id;
 
-  public KnnStream(String zkHost, String collection, String id, Map<String, String> props)
+  public KnnStream(String solrCloud, String collection, String id, Map<String, String> props)
       throws IOException {
-    init(zkHost, collection, id, props);
+    init(solrCloud, collection, id, props);
   }
 
   public KnnStream(StreamExpression expression, StreamFactory factory) throws IOException {
     // grab all parameters out
     String collectionName = factory.getValueOperand(expression, 0);
     List<StreamExpressionNamedParameter> namedParams = factory.getNamedOperands(expression);
-    StreamExpressionNamedParameter zkHostExpression = factory.getNamedOperand(expression, "zkHost");
     StreamExpressionNamedParameter idExpression = factory.getNamedOperand(expression, "id");
     StreamExpressionNamedParameter qfExpression = factory.getNamedOperand(expression, "qf");
 
@@ -99,7 +98,9 @@ public class KnnStream extends TupleStream implements Expressible {
     // pull out known named params
     Map<String, String> params = new HashMap<>();
     for (StreamExpressionNamedParameter namedParam : namedParams) {
-      if (!namedParam.getName().equals("zkHost") && !namedParam.getName().equals("id")) {
+      if (!namedParam.getName().equals("solrCloud")
+          && !namedParam.getName().equals("zkHost")
+          && !namedParam.getName().equals("id")) {
         params.put(namedParam.getName(), namedParam.getParameter().toString().trim());
       }
     }
@@ -115,32 +116,16 @@ public class KnnStream extends TupleStream implements Expressible {
       throw new IOException("qf parameter is expected for KnnStream");
     }
 
-    // zkHost, optional - if not provided then will look into factory list to get
-    String zkHost = null;
-    if (null == zkHostExpression) {
-      zkHost = factory.getCollectionZkHost(collectionName);
-      if (zkHost == null) {
-        zkHost = factory.getDefaultZkHost();
-      }
-    } else if (zkHostExpression.getParameter() instanceof StreamExpressionValue) {
-      zkHost = ((StreamExpressionValue) zkHostExpression.getParameter()).getValue();
-    }
-    if (null == zkHost) {
-      throw new IOException(
-          String.format(
-              Locale.ROOT,
-              "invalid expression %s - zkHost not found for collection '%s'",
-              expression,
-              collectionName));
-    }
+    // solrCloud, optional - if not provided then will look into factory list to get
+    String solrCloud = getSolrCloud(factory, expression, collectionName);
 
     // We've got all the required items
-    init(zkHost, collectionName, id, params);
+    init(solrCloud, collectionName, id, params);
   }
 
-  private void init(String zkHost, String collection, String id, Map<String, String> props)
+  private void init(String solrCloud, String collection, String id, Map<String, String> props)
       throws IOException {
-    this.zkHost = zkHost;
+    this.solrCloud = solrCloud;
     this.props = props;
     this.collection = collection;
     this.id = id;
@@ -159,8 +144,8 @@ public class KnnStream extends TupleStream implements Expressible {
       expression.addParameter(new StreamExpressionNamedParameter(param.getKey(), param.getValue()));
     }
 
-    // zkHost
-    expression.addParameter(new StreamExpressionNamedParameter("zkHost", zkHost));
+    // solrCloud
+    expression.addParameter(new StreamExpressionNamedParameter("solrCloud", solrCloud));
 
     return expression;
   }
@@ -233,7 +218,8 @@ public class KnnStream extends TupleStream implements Expressible {
 
     QueryRequest request = new QueryRequest(params);
     try {
-      QueryResponse response = request.process(clientCache.getCloudSolrClient(zkHost), collection);
+      QueryResponse response =
+          request.process(clientCache.getCloudSolrClient(solrCloud), collection);
       SolrDocumentList docs = response.getResults();
       documentIterator = docs.iterator();
     } catch (Exception e) {

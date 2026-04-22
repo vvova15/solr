@@ -53,7 +53,7 @@ public class FetchStream extends TupleStream implements Expressible {
 
   private static final long serialVersionUID = 1;
 
-  protected String zkHost;
+  protected String solrCloud;
   private TupleStream stream;
   private StreamContext streamContext;
   private Iterator<Tuple> tuples;
@@ -68,14 +68,14 @@ public class FetchStream extends TupleStream implements Expressible {
   private boolean appendKey = true;
 
   public FetchStream(
-      String zkHost,
+      String solrCloud,
       String collection,
       TupleStream tupleStream,
       String on,
       String fieldList,
       int batchSize)
       throws IOException {
-    init(zkHost, collection, tupleStream, on, fieldList, batchSize);
+    init(solrCloud, collection, tupleStream, on, fieldList, batchSize);
   }
 
   public FetchStream(StreamExpression expression, StreamFactory factory) throws IOException {
@@ -88,7 +88,6 @@ public class FetchStream extends TupleStream implements Expressible {
     StreamExpressionNamedParameter flParam = factory.getNamedOperand(expression, "fl");
     StreamExpressionNamedParameter batchSizeParam =
         factory.getNamedOperand(expression, "batchSize");
-    StreamExpressionNamedParameter zkHostExpression = factory.getNamedOperand(expression, "zkHost");
 
     String on = null;
     String fl = null;
@@ -122,36 +121,20 @@ public class FetchStream extends TupleStream implements Expressible {
 
     TupleStream stream = factory.constructStream(streamExpressions.get(0));
 
-    String zkHost = null;
-    if (null == zkHostExpression) {
-      zkHost = factory.getCollectionZkHost(collectionName);
-      if (zkHost == null) {
-        zkHost = factory.getDefaultZkHost();
-      }
-    } else if (zkHostExpression.getParameter() instanceof StreamExpressionValue) {
-      zkHost = ((StreamExpressionValue) zkHostExpression.getParameter()).getValue();
-    }
-    if (null == zkHost) {
-      throw new IOException(
-          String.format(
-              Locale.ROOT,
-              "invalid expression %s - zkHost not found for collection '%s'",
-              expression,
-              collectionName));
-    }
+    String solrCloud = getSolrCloud(factory, expression, collectionName);
 
-    init(zkHost, collectionName, stream, on, fl, batchSize);
+    init(solrCloud, collectionName, stream, on, fl, batchSize);
   }
 
   private void init(
-      String zkHost,
+      String solrCloud,
       String collection,
       TupleStream tupleStream,
       String on,
       String fieldList,
       int batchSize)
       throws IOException {
-    this.zkHost = zkHost;
+    this.solrCloud = solrCloud;
     this.collection = collection;
     this.stream = tupleStream;
     this.batchSize = batchSize;
@@ -264,7 +247,7 @@ public class FetchStream extends TupleStream implements Expressible {
       params.add("rows", Integer.toString(batchSize));
       params.add(SORT, "_version_ desc");
 
-      CloudSolrStream cloudSolrStream = new CloudSolrStream(zkHost, collection, params);
+      CloudSolrStream cloudSolrStream = new CloudSolrStream(solrCloud, collection, params);
       StreamContext newContext = new StreamContext();
       newContext.setSolrClientCache(streamContext.getSolrClientCache());
       newContext.setObjectCache(streamContext.getObjectCache());
