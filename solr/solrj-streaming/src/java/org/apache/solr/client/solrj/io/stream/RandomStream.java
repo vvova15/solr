@@ -21,7 +21,6 @@ import static org.apache.solr.common.params.CommonParams.SORT;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -92,16 +91,8 @@ public class RandomStream extends TupleStream implements Expressible {
     }
 
     // pull out known named params
-    Map<String, String> params = new HashMap<>();
-    for (StreamExpressionNamedParameter namedParam : namedParams) {
-      if (!namedParam.getName().equals("zkHost")
-          && !namedParam.getName().equals("solrCloud")
-          && !namedParam.getName().equals("buckets")
-          && !namedParam.getName().equals("bucketSorts")
-          && !namedParam.getName().equals("limit")) {
-        params.put(namedParam.getName(), namedParam.getParameter().toString().trim());
-      }
-    }
+    Map<String, String> params =
+        getMapWithExclusions(namedParams, "zkHost", "solrCloud", "buckets", "bucketSorts", "limit");
 
     // solrCloud, optional - if not provided then will look into factory list to get
     String solrCloud = getSolrCloud(factory, expression, collectionName);

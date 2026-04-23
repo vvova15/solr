@@ -121,12 +121,7 @@ public class FeaturesSelectionStream extends TupleStream implements Expressible 
               expression));
     }
 
-    Map<String, String> params = new HashMap<>();
-    for (StreamExpressionNamedParameter namedParam : namedParams) {
-      if (!namedParam.getName().equals("zkHost") && !namedParam.getName().equals("solrCloud")) {
-        params.put(namedParam.getName(), namedParam.getParameter().toString().trim());
-      }
-    }
+    Map<String, String> params = getMapWithExclusions(namedParams, "zkHost", "solrCloud");
 
     String fieldParam = params.get("field");
     if (fieldParam != null) {

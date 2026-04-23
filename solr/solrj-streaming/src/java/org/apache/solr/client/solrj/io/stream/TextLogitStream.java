@@ -150,12 +150,7 @@ public class TextLogitStream extends TupleStream implements Expressible {
               expression));
     }
 
-    Map<String, String> params = new HashMap<>();
-    for (StreamExpressionNamedParameter namedParam : namedParams) {
-      if (!namedParam.getName().equals("solrCloud") && !namedParam.getName().equals("solrCloud")) {
-        params.put(namedParam.getName(), namedParam.getParameter().toString().trim());
-      }
-    }
+    Map<String, String> params = getMapWithExclusions(namedParams, "solrCloud", "zkHost");
 
     String name = params.get("name");
     if (name != null) {

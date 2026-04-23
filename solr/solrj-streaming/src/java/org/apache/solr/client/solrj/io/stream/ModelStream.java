@@ -21,7 +21,6 @@ import static org.apache.solr.common.params.CommonParams.ID;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -83,12 +82,7 @@ public class ModelStream extends TupleStream implements Expressible {
               expression));
     }
 
-    Map<String, String> params = new HashMap<>();
-    for (StreamExpressionNamedParameter namedParam : namedParams) {
-      if (!namedParam.getName().equals("zkHost") && !namedParam.getName().equals("solrCloud")) {
-        params.put(namedParam.getName(), namedParam.getParameter().toString().trim());
-      }
-    }
+    Map<String, String> params = getMapWithExclusions(namedParams, "zkHost", "solrCloud");
 
     String modelID = params.get(ID);
     if (modelID == null) {

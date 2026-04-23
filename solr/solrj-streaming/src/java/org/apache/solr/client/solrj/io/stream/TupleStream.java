@@ -22,6 +22,7 @@ import java.io.PrintWriter;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -268,6 +269,21 @@ public abstract class TupleStream implements Closeable, Serializable, MapWriter 
     }
 
     return mParams;
+  }
+
+  public static Map<String, String> getMapWithExclusions(
+      List<StreamExpressionNamedParameter> namedParams, String... excluded) {
+    Map<String, String> params = new HashMap<>();
+
+    Set<String> excludedSet = new HashSet<>(Arrays.asList(excluded));
+
+    for (StreamExpressionNamedParameter namedParam : namedParams) {
+      if (!excludedSet.contains(namedParam.getName())) {
+        params.put(namedParam.getName(), namedParam.getParameter().toString().trim());
+      }
+    }
+
+    return params;
   }
 
   public static class IgnoreException extends IOException {

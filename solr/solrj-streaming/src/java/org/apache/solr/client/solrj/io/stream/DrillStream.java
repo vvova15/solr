@@ -48,7 +48,7 @@ public class DrillStream extends CloudSolrStream implements Expressible {
   private String q;
 
   public DrillStream(
-      String zkHost,
+      String solrCloud,
       String collection,
       TupleStream tupleStream,
       StreamComparator comp,
@@ -56,11 +56,11 @@ public class DrillStream extends CloudSolrStream implements Expressible {
       String flParam,
       String qParam)
       throws IOException {
-    init(zkHost, collection, tupleStream, comp, sortParam, flParam, qParam);
+    init(solrCloud, collection, tupleStream, comp, sortParam, flParam, qParam);
   }
 
   public DrillStream(
-      String zkHost,
+      String solrCloud,
       String collection,
       String expressionString,
       StreamComparator comp,
@@ -69,7 +69,7 @@ public class DrillStream extends CloudSolrStream implements Expressible {
       String qParam)
       throws IOException {
     TupleStream tStream = this.streamFactory.constructStream(expressionString);
-    init(zkHost, collection, tStream, comp, sortParam, flParam, qParam);
+    init(solrCloud, collection, tStream, comp, sortParam, flParam, qParam);
   }
 
   public void setStreamFactory(StreamFactory streamFactory) {
@@ -85,8 +85,6 @@ public class DrillStream extends CloudSolrStream implements Expressible {
     StreamExpressionNamedParameter sortExpression = factory.getNamedOperand(expression, SORT);
     StreamExpressionNamedParameter qExpression = factory.getNamedOperand(expression, Q);
     StreamExpressionNamedParameter flExpression = factory.getNamedOperand(expression, FL);
-
-    StreamExpressionNamedParameter zkHostExpression = factory.getNamedOperand(expression, "zkHost");
 
     // Collection Name
     if (null == collectionName) {
@@ -147,24 +145,8 @@ public class DrillStream extends CloudSolrStream implements Expressible {
       qParam = ((StreamExpressionValue) qExpression.getParameter()).getValue();
     }
 
-    // zkHost, optional - if not provided then will look into factory list to get
-    String zkHost = null;
-    if (null == zkHostExpression) {
-      zkHost = factory.getCollectionZkHost(collectionName);
-      if (zkHost == null) {
-        zkHost = factory.getDefaultZkHost();
-      }
-    } else if (zkHostExpression.getParameter() instanceof StreamExpressionValue) {
-      zkHost = ((StreamExpressionValue) zkHostExpression.getParameter()).getValue();
-    }
-    if (null == zkHost) {
-      throw new IOException(
-          String.format(
-              Locale.ROOT,
-              "invalid expression %s - zkHost not found for collection '%s'",
-              expression,
-              collectionName));
-    }
+    // solrCloud, optional - if not provided then will look into factory list to get
+    String solrCloud = getSolrCloud(factory, expression, collectionName);
 
     // We've got all the required items
     StreamFactory localFactory = (StreamFactory) factory.clone();
@@ -175,11 +157,11 @@ public class DrillStream extends CloudSolrStream implements Expressible {
             ((StreamExpressionValue) sortExpression.getParameter()).getValue(),
             FieldComparator.class);
     streamFactory = factory;
-    init(zkHost, collectionName, stream, comp, sortParam, flParam, qParam);
+    init(solrCloud, collectionName, stream, comp, sortParam, flParam, qParam);
   }
 
   private void init(
-      String zkHost,
+      String solrCloud,
       String collection,
       TupleStream tupleStream,
       StreamComparator comp,
@@ -187,7 +169,7 @@ public class DrillStream extends CloudSolrStream implements Expressible {
       String flParam,
       String qParam)
       throws IOException {
-    this.solrCloud = zkHost;
+    this.solrCloud = solrCloud;
     this.collection = collection;
     this.comp = comp;
     this.tupleStream = tupleStream;
@@ -228,8 +210,8 @@ public class DrillStream extends CloudSolrStream implements Expressible {
     // sort
     expression.addParameter(new StreamExpressionNamedParameter(SORT, comp.toExpression(factory)));
 
-    // zkHost
-    expression.addParameter(new StreamExpressionNamedParameter("zkHost", solrCloud));
+    // solrCloud
+    expression.addParameter(new StreamExpressionNamedParameter("solrCloud", solrCloud));
 
     return expression;
   }

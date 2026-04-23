@@ -22,7 +22,6 @@ import static org.apache.solr.common.params.CommonParams.ROWS;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -96,14 +95,7 @@ public class KnnStream extends TupleStream implements Expressible {
     }
 
     // pull out known named params
-    Map<String, String> params = new HashMap<>();
-    for (StreamExpressionNamedParameter namedParam : namedParams) {
-      if (!namedParam.getName().equals("solrCloud")
-          && !namedParam.getName().equals("zkHost")
-          && !namedParam.getName().equals("id")) {
-        params.put(namedParam.getName(), namedParam.getParameter().toString().trim());
-      }
-    }
+    Map<String, String> params = getMapWithExclusions(namedParams, "solrCloud", "zkHost", "id");
 
     String id = null;
     if (idExpression != null) {

@@ -272,20 +272,18 @@ public class GatherNodesStream extends TupleStream implements Expressible {
           Integer.parseInt(((StreamExpressionValue) docFreqExpression.getParameter()).getValue());
     }
 
-    Map<String, String> params = new HashMap<String, String>();
-    for (StreamExpressionNamedParameter namedParam : namedParams) {
-      if (!namedParam.getName().equals("zkHost")
-          && !namedParam.getName().equals("solrCloud")
-          && !namedParam.getName().equals("gather")
-          && !namedParam.getName().equals("walk")
-          && !namedParam.getName().equals("scatter")
-          && !namedParam.getName().equals("maxDocFreq")
-          && !namedParam.getName().equals("trackTraversal")
-          && !namedParam.getName().equals("window")
-          && !namedParam.getName().equals("lag")) {
-        params.put(namedParam.getName(), namedParam.getParameter().toString().trim());
-      }
-    }
+    Map<String, String> params =
+        getMapWithExclusions(
+            namedParams,
+            "zkHost",
+            "solrCloud",
+            "gather",
+            "walk",
+            "scatter",
+            "maxDocFreq",
+            "trackTraversal",
+            "window",
+            "lag");
 
     // solrCloud, optional - if not provided then will look into factory list to get
     String solrCloud = getSolrCloud(factory, expression, collectionName);
